@@ -1,0 +1,54 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "sentinel_solar",
+        "description": "Configura la teva instal·lació solar. Projecte comunitari no oficial de Sentinel Solar. Pots afegir múltiples configuracions amb diferents Asset IDs (un amb factor 1.0 pel total, un altre amb el teu factor per la teva porció).",
+        "data": {
+          "base_url": "Base URL",
+          "token": "Token (X-AUTH-TOKEN)",
+          "asset_general": "Asset ID",
+          "update_minutes": "Minuts entre lectures",
+          "share_factor": "Factor de participació (0..1)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No s'ha pogut connectar o credencials/asset invàlids.",
+      "formato_invalido": "Format invàlid. Usa punt (.) o coma (,) com a separador decimal."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcions de la integració",
+        "description": "També pots ajustar aquests valors des dels controls del dispositiu.",
+        "data": {
+          "update_minutes": "Minuts entre lectures",
+          "share_factor": "Factor de participació (0..1)"
+        }
+      }
+    },
+    "error": {
+      "formato_invalido": "Format invàlid. Usa punt (.) o coma (,) com a separador decimal."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "power": {
+        "name": "Potència"
+      },
+      "energy": {
+        "name": "Energia"
+      }
+    },
+    "number": {
+      "share_factor": {
+        "name": "Factor de Participació"
+      },
+      "update_interval": {
+        "name": "Interval d'Actualització"
+      }
+    }
+  }
+}

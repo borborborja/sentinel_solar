@@ -1,0 +1,54 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "sentinel_solar",
+        "description": "Configure your solar installation. Community-driven project not officially affiliated with Sentinel Solar. You can add multiple configurations with different Asset IDs (one with factor 1.0 for the total, another with your factor for your share).",
+        "data": {
+          "base_url": "Base URL",
+          "token": "Token (X-AUTH-TOKEN)",
+          "asset_general": "Asset ID",
+          "update_minutes": "Minutes between readings",
+          "share_factor": "Participation factor (0..1)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect or invalid credentials/asset.",
+      "formato_invalido": "Invalid format. Use dot (.) or comma (,) as decimal separator."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Integration options",
+        "description": "You can also adjust these values from the device controls.",
+        "data": {
+          "update_minutes": "Minutes between readings",
+          "share_factor": "Participation factor (0..1)"
+        }
+      }
+    },
+    "error": {
+      "formato_invalido": "Invalid format. Use dot (.) or comma (,) as decimal separator."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "power": {
+        "name": "Power"
+      },
+      "energy": {
+        "name": "Energy"
+      }
+    },
+    "number": {
+      "share_factor": {
+        "name": "Participation Factor"
+      },
+      "update_interval": {
+        "name": "Update Interval"
+      }
+    }
+  }
+}
