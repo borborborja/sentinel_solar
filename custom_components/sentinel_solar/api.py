@@ -19,7 +19,7 @@ class SentinelClient:
         self._session = session
         self._base_url = base_url.rstrip("/")
         self._headers = {"X-AUTH-TOKEN": token, "Accept": "application/json"}
-        self._lock = asyncio.Lock()
+        self._headers = {"X-AUTH-TOKEN": token, "Accept": "application/json"}
         
         # Métricas de rendimiento
         self._metrics = {
@@ -37,8 +37,7 @@ class SentinelClient:
         
         for attempt in range(retries):
             try:
-                async with self._lock:
-                    async with self._session.get(url, headers=self._headers, timeout=TIMEOUT) as resp:
+                async with self._session.get(url, headers=self._headers, timeout=TIMEOUT) as resp:
                         # Si el código de estado requiere reintento y no es el último intento
                         if resp.status in RETRY_STATUS_CODES and attempt < retries - 1:
                             wait_time = 2 ** attempt  # Backoff exponencial: 1s, 2s, 4s...

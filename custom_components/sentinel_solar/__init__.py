@@ -15,7 +15,7 @@ from .const import (
 from .api import SentinelClient
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS: list[str] = ["sensor", "number"]
+PLATFORMS: list[str] = ["sensor", "number", "switch"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Configurar la integración cuando se carga una entrada de configuración."""
@@ -26,44 +26,57 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Obtener opciones de configuración
     update_minutes = entry.options.get(CONF_UPDATE_MINUTES, DEFAULT_UPDATE_MINUTES)
-    share_factor = entry.options.get(CONF_SHARE_FACTOR)
     
     client = SentinelClient(session, base_url, token)
     
-    # Obtener y cachear información del asset
-    asset_info = {}
-    try:
-        asset_info = await client.fetch_asset_info(asset_general)
-        asset_name = asset_info.get("name") or asset_info.get("assetName") or asset_general
-        _LOGGER.info("Información del asset obtenida: %s", asset_name)
-    except Exception as e:
-        _LOGGER.warning("No se pudo obtener información del asset: %s", e)
-        asset_info = {"name": asset_general}
-    
-    # Intentar obtener el share_factor desde la API si no está configurado
-    if share_factor is None:
-        try:
-            api_share_factor = await client.get_share_factor(asset_general)
-            if api_share_factor is not None:
-                # Actualizar las opciones con el share_factor obtenido de la API
-                new_options = dict(entry.options)
-                new_options[CONF_SHARE_FACTOR] = api_share_factor
-                hass.config_entries.async_update_entry(entry, options=new_options)
-                share_factor = api_share_factor
-                _LOGGER.info("Share factor obtenido desde la API: %s", share_factor)
-            else:
-                share_factor = DEFAULT_SHARE_FACTOR
-                _LOGGER.warning("No se pudo obtener el share_factor desde la API, usando valor por defecto: %s", share_factor)
-        except Exception as e:
-            _LOGGER.warning("Error al obtener share_factor desde la API: %s. Usando valor por defecto.", e)
-            share_factor = DEFAULT_SHARE_FACTOR
-    else:
-        share_factor = float(share_factor)
+    # Inicializar datos en hass.data antes del coordinador
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+        "client": client,
+        "asset_general": asset_general,
+        "asset_info": {"name": asset_general},  # Info por defecto
+        "night_mode": False,  # Estado por defecto del modo noche
+        "last_data": {"general": {}},  # Últimos datos conocidos
+        "initialized_info": False,
+    }
 
     async def _async_update():
+        data_store = hass.data[DOMAIN][entry.entry_id]
+        
+        # 1. Lazy load de información del asset (solo la primera vez)
+        if not data_store.get("initialized_info"):
+            try:
+                asset_info = await client.fetch_asset_info(asset_general)
+                data_store["asset_info"] = asset_info
+                _LOGGER.info("Información del asset obtenida en segundo plano: %s", asset_info.get("name"))
+                
+                # Lógica de share_factor
+                share_factor = entry.options.get(CONF_SHARE_FACTOR)
+                if share_factor is None:
+                    api_share_factor = await client.get_share_factor(asset_general)
+                    if api_share_factor is not None:
+                        new_options = dict(entry.options)
+                        new_options[CONF_SHARE_FACTOR] = api_share_factor
+                        hass.config_entries.async_update_entry(entry, options=new_options)
+                        _LOGGER.info("Share factor actualizado desde API: %s", api_share_factor)
+                
+                data_store["initialized_info"] = True
+            except Exception as e:
+                _LOGGER.warning("Error obteniendo info inicial del asset (se reintentará): %s", e)
+
+        # 2. Lógica de Modo Noche
+        if data_store.get("night_mode", False):
+            sun = hass.states.get("sun.sun")
+            if sun and sun.state == "below_horizon":
+                _LOGGER.debug("Modo Noche activo: Pausando llamadas a la API y reportando 0W")
+                # Devolver 0 de potencia para que no cuente consumo/generación fantasma
+                return {"general": {"power": 0.0}}
+
+        # 3. Obtener datos
         try:
             general = await client.fetch_power_instant(asset_general)
-            return {"general": general}
+            result = {"general": general}
+            data_store["last_data"] = result
+            return result
         except Exception as e:
             raise UpdateFailed(str(e)) from e
 
@@ -74,14 +87,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         update_method=_async_update,
         update_interval=timedelta(minutes=update_minutes),
     )
-    await coordinator.async_config_entry_first_refresh()
+    
+    # Guardar coordinador en hass.data
+    hass.data[DOMAIN][entry.entry_id]["coordinator"] = coordinator
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        "client": client,
-        "coordinator": coordinator,
-        "asset_general": asset_general,
-        "asset_info": asset_info,  # Cachear información del asset
-    }
+    await coordinator.async_config_entry_first_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
